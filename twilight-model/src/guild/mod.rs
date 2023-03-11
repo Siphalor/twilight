@@ -3,18 +3,16 @@
 //! [`Guild`]s allow, for example, assigning [`Role`]s to [`Member`]s to limit
 //! their [`Permissions`] globally, or per [`Channel`].
 //!
-//! Advanced user's may look inside the [`member`] module for custom
-//! [`Member`] deserializers.
-//!
 //! [`User`]: super::user::User
 
 pub mod audit_log;
 pub mod auto_moderation;
 pub mod invite;
-pub mod member;
 pub mod scheduled_event;
 pub mod template;
+pub mod widget;
 
+mod afk_timeout;
 mod ban;
 mod default_message_notification_level;
 mod emoji;
@@ -25,6 +23,9 @@ mod integration;
 mod integration_account;
 mod integration_application;
 mod integration_expire_behavior;
+mod integration_type;
+mod member;
+mod member_flags;
 mod mfa_level;
 mod nsfw_level;
 mod partial_guild;
@@ -39,26 +40,23 @@ mod system_channel_flags;
 mod unavailable_guild;
 mod vanity_url;
 mod verification_level;
-mod widget;
 
-// `Member` should appear inline, as the `member` module is only for advanced
-// use. Public documentation is not available for re-exports.
-#[doc(inline)]
-pub use self::member::Member;
+pub use self::nsfw_level::NSFWLevel;
+pub use self::permissions::Permissions;
 pub use self::{
-    ban::Ban, default_message_notification_level::DefaultMessageNotificationLevel, emoji::Emoji,
+    afk_timeout::AfkTimeout, ban::Ban,
+    default_message_notification_level::DefaultMessageNotificationLevel, emoji::Emoji,
     explicit_content_filter::ExplicitContentFilter, feature::GuildFeature, info::GuildInfo,
     integration::GuildIntegration, integration_account::IntegrationAccount,
     integration_application::IntegrationApplication,
-    integration_expire_behavior::IntegrationExpireBehavior, mfa_level::MfaLevel,
-    nsfw_level::NSFWLevel, partial_guild::PartialGuild, partial_member::PartialMember,
-    permissions::Permissions, premium_tier::PremiumTier, preview::GuildPreview, prune::GuildPrune,
-    role::Role, role_tags::RoleTags, system_channel_flags::SystemChannelFlags,
+    integration_expire_behavior::IntegrationExpireBehavior, integration_type::GuildIntegrationType,
+    member::Member, member_flags::MemberFlags, mfa_level::MfaLevel, partial_guild::PartialGuild,
+    partial_member::PartialMember, premium_tier::PremiumTier, preview::GuildPreview,
+    prune::GuildPrune, role::Role, role_tags::RoleTags, system_channel_flags::SystemChannelFlags,
     unavailable_guild::UnavailableGuild, vanity_url::VanityUrl,
     verification_level::VerificationLevel, widget::GuildWidget,
 };
 
-use self::member::MemberListDeserializer;
 use super::gateway::presence::PresenceListDeserializer;
 use crate::{
     channel::{message::sticker::Sticker, Channel, StageInstance},
@@ -79,7 +77,7 @@ use std::fmt::{Formatter, Result as FmtResult};
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct Guild {
     pub afk_channel_id: Option<Id<ChannelMarker>>,
-    pub afk_timeout: u64,
+    pub afk_timeout: AfkTimeout,
     pub application_id: Option<Id<ApplicationMarker>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approximate_member_count: Option<u64>,
@@ -127,6 +125,9 @@ pub struct Guild {
     pub premium_tier: PremiumTier,
     #[serde(default)]
     pub presences: Vec<Presence>,
+    /// ID of the where moderators of Community guilds receive notices from
+    /// Discord.
+    pub public_updates_channel_id: Option<Id<ChannelMarker>>,
     pub roles: Vec<Role>,
     pub rules_channel_id: Option<Id<ChannelMarker>>,
     pub splash: Option<ImageHash>,
@@ -189,6 +190,7 @@ impl<'de> Deserialize<'de> for Guild {
             PremiumSubscriptionCount,
             PremiumTier,
             Presences,
+            PublicUpdatesChannelId,
             Roles,
             Splash,
             StageInstances,
@@ -249,6 +251,7 @@ impl<'de> Deserialize<'de> for Guild {
                 let mut premium_subscription_count = None::<Option<_>>;
                 let mut premium_tier = None;
                 let mut presences = None;
+                let mut public_updates_channel_id = None::<Option<_>>;
                 let mut roles = None;
                 let mut splash = None::<Option<_>>;
                 let mut stage_instances = None::<Vec<StageInstance>>;
@@ -443,9 +446,7 @@ impl<'de> Deserialize<'de> for Guild {
                                 return Err(DeError::duplicate_field("members"));
                             }
 
-                            let deserializer = MemberListDeserializer::new(Id::new(1));
-
-                            members = Some(map.next_value_seed(deserializer)?);
+                            members = Some(map.next_value()?);
                         }
                         Field::MfaLevel => {
                             if mfa_level.is_some() {
@@ -527,6 +528,13 @@ impl<'de> Deserialize<'de> for Guild {
                             let deserializer = PresenceListDeserializer::new(Id::new(1));
 
                             presences = Some(map.next_value_seed(deserializer)?);
+                        }
+                        Field::PublicUpdatesChannelId => {
+                            if public_updates_channel_id.is_some() {
+                                return Err(DeError::duplicate_field("public_updates_channel_id"));
+                            }
+
+                            public_updates_channel_id = Some(map.next_value()?);
                         }
                         Field::Roles => {
                             if roles.is_some() {
@@ -666,13 +674,14 @@ impl<'de> Deserialize<'de> for Guild {
                 let max_presences = max_presences.unwrap_or_default();
                 let max_video_channel_users = max_video_channel_users.unwrap_or_default();
                 let member_count = member_count.unwrap_or_default();
-                let mut members = members.unwrap_or_default();
+                let members = members.unwrap_or_default();
                 let nsfw_level = nsfw_level.ok_or_else(|| DeError::missing_field("nsfw_level"))?;
                 let owner = owner.unwrap_or_default();
                 let permissions = permissions.unwrap_or_default();
                 let premium_subscription_count = premium_subscription_count.unwrap_or_default();
                 let premium_tier = premium_tier.unwrap_or_default();
                 let mut presences = presences.unwrap_or_default();
+                let public_updates_channel_id = public_updates_channel_id.unwrap_or_default();
                 let rules_channel_id = rules_channel_id.unwrap_or_default();
                 let splash = splash.unwrap_or_default();
                 let stage_instances = stage_instances.unwrap_or_default();
@@ -687,7 +696,7 @@ impl<'de> Deserialize<'de> for Guild {
 
                 tracing::trace!(
                     ?afk_channel_id,
-                    %afk_timeout,
+                    ?afk_timeout,
                     ?application_id,
                     ?approximate_member_count,
                     ?approximate_presence_count,
@@ -722,6 +731,7 @@ impl<'de> Deserialize<'de> for Guild {
                     ?premium_subscription_count,
                     ?premium_tier,
                     ?presences,
+                    ?public_updates_channel_id,
                     ?rules_channel_id,
                     ?roles,
                     ?splash,
@@ -740,10 +750,6 @@ impl<'de> Deserialize<'de> for Guild {
 
                 for channel in &mut channels {
                     channel.guild_id = Some(id);
-                }
-
-                for member in &mut members {
-                    member.guild_id = id;
                 }
 
                 for presence in &mut presences {
@@ -792,6 +798,7 @@ impl<'de> Deserialize<'de> for Guild {
                     premium_subscription_count,
                     premium_tier,
                     presences,
+                    public_updates_channel_id,
                     roles,
                     rules_channel_id,
                     splash,
@@ -844,6 +851,7 @@ impl<'de> Deserialize<'de> for Guild {
             "premium_subscription_count",
             "premium_tier",
             "presences",
+            "public_updates_channel_id",
             "roles",
             "splash",
             "system_channel_id",
@@ -865,8 +873,8 @@ impl<'de> Deserialize<'de> for Guild {
 #[cfg(test)]
 mod tests {
     use super::{
-        DefaultMessageNotificationLevel, ExplicitContentFilter, Guild, GuildFeature, MfaLevel,
-        NSFWLevel, Permissions, PremiumTier, SystemChannelFlags, VerificationLevel,
+        AfkTimeout, DefaultMessageNotificationLevel, ExplicitContentFilter, Guild, GuildFeature,
+        MfaLevel, NSFWLevel, Permissions, PremiumTier, SystemChannelFlags, VerificationLevel,
     };
     use crate::{
         id::Id,
@@ -883,7 +891,7 @@ mod tests {
 
         let value = Guild {
             afk_channel_id: Some(Id::new(2)),
-            afk_timeout: 900,
+            afk_timeout: AfkTimeout::FIFTEEN_MINUTES,
             application_id: Some(Id::new(3)),
             approximate_member_count: Some(1_200),
             approximate_presence_count: Some(900),
@@ -915,6 +923,7 @@ mod tests {
             premium_subscription_count: Some(3),
             premium_tier: PremiumTier::Tier1,
             presences: Vec::new(),
+            public_updates_channel_id: None,
             roles: Vec::new(),
             rules_channel_id: Some(Id::new(6)),
             splash: Some(image_hash::SPLASH),
@@ -936,14 +945,15 @@ mod tests {
             &[
                 Token::Struct {
                     name: "Guild",
-                    len: 45,
+                    len: 46,
                 },
                 Token::Str("afk_channel_id"),
                 Token::Some,
                 Token::NewtypeStruct { name: "Id" },
                 Token::Str("2"),
                 Token::Str("afk_timeout"),
-                Token::U64(900),
+                Token::NewtypeStruct { name: "AfkTimeout" },
+                Token::U16(900),
                 Token::Str("application_id"),
                 Token::Some,
                 Token::NewtypeStruct { name: "Id" },
@@ -1030,6 +1040,8 @@ mod tests {
                 Token::Str("presences"),
                 Token::Seq { len: Some(0) },
                 Token::SeqEnd,
+                Token::Str("public_updates_channel_id"),
+                Token::None,
                 Token::Str("roles"),
                 Token::Seq { len: Some(0) },
                 Token::SeqEnd,

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.15.0] - 2023-02-05
+
+Check out [the migration guide] for a summary of Gateway changes.
+
+[the migration guide]: https://twilight.rs/versions/0.15
+
+## [0.14.2] - 2023-02-05
+
+### Bug Fixes
+
+- backport unexpected eof handling ([#2099](https://github.com/twilight-rs/twilight/issues/2099))
+
+## [0.14.1] - 2023-01-20
+
+### Features
+
+- [**breaking**] support the `GUILD_AUDIT_LOG_ENTRY_CREATE` gateway event ([#2067](https://github.com/twilight-rs/twilight/issues/2067))
+
 ## [0.14.0] - 2022-11-14
 
 MSRV has been bumped to 1.64 ([#1897] - [@vilgotf]).

@@ -421,7 +421,7 @@ mod tests {
     };
     use crate::{
         application::command::{CommandOptionType, CommandType},
-        guild::{PartialMember, Permissions},
+        guild::{MemberFlags, PartialMember, Permissions},
         id::Id,
         test::image_hash,
         user::User,
@@ -434,6 +434,7 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     fn test_interaction_full() -> Result<(), TimestampParseError> {
         let joined_at = Timestamp::from_str("2020-01-01T00:00:00.000000+00:00")?;
+        let flags = MemberFlags::BYPASSES_VERIFICATION | MemberFlags::DID_REJOIN;
 
         let value = Interaction {
             app_permissions: Some(Permissions::SEND_MESSAGES),
@@ -456,6 +457,7 @@ mod tests {
                         InteractionMember {
                             avatar: None,
                             communication_disabled_until: None,
+                            flags,
                             joined_at,
                             nick: Some("nickname".into()),
                             pending: false,
@@ -500,6 +502,7 @@ mod tests {
                 avatar: None,
                 communication_disabled_until: None,
                 deaf: false,
+                flags,
                 joined_at,
                 mute: false,
                 nick: Some("nickname".into()),
@@ -586,10 +589,12 @@ mod tests {
                 Token::Str("600"),
                 Token::Struct {
                     name: "InteractionMember",
-                    len: 6,
+                    len: 7,
                 },
                 Token::Str("communication_disabled_until"),
                 Token::None,
+                Token::Str("flags"),
+                Token::U64(flags.bits()),
                 Token::Str("joined_at"),
                 Token::Str("2020-01-01T00:00:00.000000+00:00"),
                 Token::Str("nick"),
@@ -651,12 +656,14 @@ mod tests {
                 Token::Some,
                 Token::Struct {
                     name: "PartialMember",
-                    len: 8,
+                    len: 9,
                 },
                 Token::Str("communication_disabled_until"),
                 Token::None,
                 Token::Str("deaf"),
                 Token::Bool(false),
+                Token::Str("flags"),
+                Token::U64(flags.bits()),
                 Token::Str("joined_at"),
                 Token::Str("2020-01-01T00:00:00.000000+00:00"),
                 Token::Str("mute"),

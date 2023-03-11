@@ -83,11 +83,6 @@ impl<'a> GetReactions<'a> {
 
         Ok(self)
     }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    pub fn exec(self) -> ResponseFuture<ListBody<User>> {
-        self.into_future()
-    }
 }
 
 impl IntoFuture for GetReactions<'_> {

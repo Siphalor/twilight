@@ -18,12 +18,14 @@ pub enum EventType {
     ChannelUpdate,
     #[serde(rename = "APPLICATION_COMMAND_PERMISSIONS_UPDATE")]
     CommandPermissionsUpdate,
+    GatewayClose,
     GatewayHeartbeat,
     GatewayHeartbeatAck,
     GatewayHello,
     GatewayInvalidateSession,
     GatewayReconnect,
     GiftCodeUpdate,
+    GuildAuditLogEntryCreate,
     GuildCreate,
     GuildDelete,
     GuildEmojisUpdate,
@@ -71,13 +73,6 @@ pub enum EventType {
     RoleDelete,
     #[serde(rename = "GUILD_ROLE_UPDATE")]
     RoleUpdate,
-    ShardConnected,
-    ShardConnecting,
-    ShardDisconnected,
-    ShardIdentifying,
-    ShardPayload,
-    ShardReconnecting,
-    ShardResuming,
     StageInstanceCreate,
     StageInstanceDelete,
     StageInstanceUpdate,
@@ -110,6 +105,7 @@ impl EventType {
             Self::ChannelUpdate => Some("CHANNEL_UPDATE"),
             Self::CommandPermissionsUpdate => Some("APPLICATION_COMMAND_PERMISSIONS_UPDATE"),
             Self::GiftCodeUpdate => Some("GIFT_CODE_UPDATE"),
+            Self::GuildAuditLogEntryCreate => Some("GUILD_AUDIT_LOG_ENTRY_CREATE"),
             Self::GuildCreate => Some("GUILD_CREATE"),
             Self::GuildDelete => Some("GUILD_DELETE"),
             Self::GuildEmojisUpdate => Some("GUILD_EMOJIS_UPDATE"),
@@ -161,18 +157,12 @@ impl EventType {
             Self::VoiceServerUpdate => Some("VOICE_SERVER_UPDATE"),
             Self::VoiceStateUpdate => Some("VOICE_STATE_UPDATE"),
             Self::WebhooksUpdate => Some("WEBHOOKS_UPDATE"),
-            Self::GatewayHeartbeat
+            Self::GatewayClose
+            | Self::GatewayHeartbeat
             | Self::GatewayHeartbeatAck
             | Self::GatewayHello
             | Self::GatewayInvalidateSession
-            | Self::GatewayReconnect
-            | Self::ShardConnected
-            | Self::ShardConnecting
-            | Self::ShardDisconnected
-            | Self::ShardIdentifying
-            | Self::ShardPayload
-            | Self::ShardReconnecting
-            | Self::ShardResuming => None,
+            | Self::GatewayReconnect => None,
         }
     }
 }
@@ -186,6 +176,7 @@ impl<'a> TryFrom<&'a str> for EventType {
             "AUTO_MODERATION_RULE_CREATE" => Ok(Self::AutoModerationRuleCreate),
             "AUTO_MODERATION_RULE_DELETE" => Ok(Self::AutoModerationRuleDelete),
             "AUTO_MODERATION_RULE_UPDATE" => Ok(Self::AutoModerationRuleUpdate),
+            "GUILD_AUDIT_LOG_ENTRY_CREATE" => Ok(Self::GuildAuditLogEntryCreate),
             "GUILD_BAN_ADD" => Ok(Self::BanAdd),
             "GUILD_BAN_REMOVE" => Ok(Self::BanRemove),
             "CHANNEL_CREATE" => Ok(Self::ChannelCreate),
@@ -293,6 +284,7 @@ mod tests {
             EventType::CommandPermissionsUpdate,
             "APPLICATION_COMMAND_PERMISSIONS_UPDATE",
         );
+        assert_variant(EventType::GatewayClose, "GATEWAY_CLOSE");
         assert_variant(EventType::GatewayHeartbeat, "GATEWAY_HEARTBEAT");
         assert_variant(EventType::GatewayHeartbeatAck, "GATEWAY_HEARTBEAT_ACK");
         assert_variant(EventType::GatewayHello, "GATEWAY_HELLO");
@@ -302,6 +294,10 @@ mod tests {
         );
         assert_variant(EventType::GatewayReconnect, "GATEWAY_RECONNECT");
         assert_variant(EventType::GiftCodeUpdate, "GIFT_CODE_UPDATE");
+        assert_variant(
+            EventType::GuildAuditLogEntryCreate,
+            "GUILD_AUDIT_LOG_ENTRY_CREATE",
+        );
         assert_variant(EventType::GuildCreate, "GUILD_CREATE");
         assert_variant(EventType::GuildDelete, "GUILD_DELETE");
         assert_variant(EventType::GuildEmojisUpdate, "GUILD_EMOJIS_UPDATE");
@@ -358,13 +354,6 @@ mod tests {
         assert_variant(EventType::RoleCreate, "GUILD_ROLE_CREATE");
         assert_variant(EventType::RoleDelete, "GUILD_ROLE_DELETE");
         assert_variant(EventType::RoleUpdate, "GUILD_ROLE_UPDATE");
-        assert_variant(EventType::ShardConnected, "SHARD_CONNECTED");
-        assert_variant(EventType::ShardConnecting, "SHARD_CONNECTING");
-        assert_variant(EventType::ShardDisconnected, "SHARD_DISCONNECTED");
-        assert_variant(EventType::ShardIdentifying, "SHARD_IDENTIFYING");
-        assert_variant(EventType::ShardPayload, "SHARD_PAYLOAD");
-        assert_variant(EventType::ShardReconnecting, "SHARD_RECONNECTING");
-        assert_variant(EventType::ShardResuming, "SHARD_RESUMING");
         assert_variant(EventType::StageInstanceCreate, "STAGE_INSTANCE_CREATE");
         assert_variant(EventType::StageInstanceDelete, "STAGE_INSTANCE_DELETE");
         assert_variant(EventType::StageInstanceUpdate, "STAGE_INSTANCE_UPDATE");

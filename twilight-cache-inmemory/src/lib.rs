@@ -1,23 +1,16 @@
-#![deny(
-    clippy::all,
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc = include_str!("../README.md")]
+#![warn(
     clippy::missing_const_for_fn,
     clippy::pedantic,
-    future_incompatible,
     missing_docs,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::broken_intra_doc_links,
-    unsafe_code,
-    unused
+    unsafe_code
 )]
 #![allow(
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
-    clippy::unnecessary_wraps,
-    clippy::used_underscore_binding
+    clippy::unnecessary_wraps
 )]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![doc = include_str!("../README.md")]
 
 pub mod iter;
 pub mod model;
@@ -54,7 +47,7 @@ use dashmap::{
     DashMap, DashSet,
 };
 use std::{
-    collections::{BTreeSet, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     fmt::{Debug, Formatter, Result as FmtResult},
     hash::Hash,
     ops::Deref,
@@ -221,7 +214,7 @@ pub struct InMemoryCache {
     stickers: DashMap<Id<StickerMarker>, GuildResource<CachedSticker>>,
     unavailable_guilds: DashSet<Id<GuildMarker>>,
     users: DashMap<Id<UserMarker>, User>,
-    user_guilds: DashMap<Id<UserMarker>, BTreeSet<Id<GuildMarker>>>,
+    user_guilds: DashMap<Id<UserMarker>, HashSet<Id<GuildMarker>>>,
     /// Mapping of channels and the users currently connected.
     #[allow(clippy::type_complexity)]
     voice_state_channels: DashMap<Id<ChannelMarker>, HashSet<(Id<GuildMarker>, Id<UserMarker>)>>,
@@ -659,6 +652,24 @@ impl InMemoryCache {
         self.users.get(&user_id).map(Reference::new)
     }
 
+    /// Get the guilds a user is in by ID.
+    ///
+    /// Users are cached from a range of events such as [`InteractionCreate`]
+    /// and [`MemberAdd`], so although no specific intent is required to cache
+    /// users the intents required for different events are required.
+    ///
+    /// Requires the [`USER`] resource type.
+    ///
+    /// [`MemberAdd`]: twilight_model::gateway::payload::incoming::MemberAdd
+    /// [`InteractionCreate`]: twilight_model::gateway::payload::incoming::InteractionCreate
+    /// [`USER`]: crate::config::ResourceType::USER
+    pub fn user_guilds(
+        &self,
+        user_id: Id<UserMarker>,
+    ) -> Option<Reference<'_, Id<UserMarker>, HashSet<Id<GuildMarker>>>> {
+        self.user_guilds.get(&user_id).map(Reference::new)
+    }
+
     /// Gets the voice states within a voice channel.
     ///
     /// This requires both the [`GUILDS`] and [`GUILD_VOICE_STATES`] intents.
@@ -886,12 +897,14 @@ impl UpdateCache for Event {
             | Event::BanAdd(_)
             | Event::BanRemove(_)
             | Event::CommandPermissionsUpdate(_)
+            | Event::GatewayClose(_)
             | Event::GatewayHeartbeat(_)
             | Event::GatewayHeartbeatAck
             | Event::GatewayHello(_)
             | Event::GatewayInvalidateSession(_)
             | Event::GatewayReconnect
             | Event::GiftCodeUpdate
+            | Event::GuildAuditLogEntryCreate(_)
             | Event::GuildIntegrationsUpdate(_)
             | Event::GuildScheduledEventCreate(_)
             | Event::GuildScheduledEventDelete(_)
@@ -902,13 +915,6 @@ impl UpdateCache for Event {
             | Event::InviteDelete(_)
             | Event::PresencesReplace
             | Event::Resumed
-            | Event::ShardConnected(_)
-            | Event::ShardConnecting(_)
-            | Event::ShardDisconnected(_)
-            | Event::ShardIdentifying(_)
-            | Event::ShardPayload(_)
-            | Event::ShardReconnecting(_)
-            | Event::ShardResuming(_)
             | Event::ThreadMembersUpdate(_)
             | Event::ThreadMemberUpdate(_)
             | Event::TypingStart(_)
@@ -923,7 +929,7 @@ mod tests {
     use crate::{test, InMemoryCache};
     use twilight_model::{
         gateway::payload::incoming::RoleDelete,
-        guild::{Member, Permissions, Role},
+        guild::{Member, MemberFlags, Permissions, Role},
         id::Id,
         util::Timestamp,
     };
@@ -941,7 +947,7 @@ mod tests {
     fn clear() {
         let cache = InMemoryCache::new();
         cache.cache_emoji(Id::new(1), test::emoji(Id::new(3), None));
-        cache.cache_member(Id::new(2), test::member(Id::new(4), Id::new(2)));
+        cache.cache_member(Id::new(2), test::member(Id::new(2)));
         cache.clear();
         assert!(cache.emojis.is_empty());
         assert!(cache.members.is_empty());
@@ -953,13 +959,14 @@ mod tests {
         let cache = InMemoryCache::new();
         let guild_id = Id::new(1);
         let user = test::user(Id::new(1));
+        let flags = MemberFlags::BYPASSES_VERIFICATION | MemberFlags::DID_REJOIN;
         cache.cache_member(
             guild_id,
             Member {
                 avatar: None,
                 communication_disabled_until: None,
                 deaf: false,
-                guild_id,
+                flags,
                 joined_at,
                 mute: false,
                 nick: None,

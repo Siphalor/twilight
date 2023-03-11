@@ -12,6 +12,9 @@ use twilight_model::{
 };
 
 /// Get the guild's integrations.
+///
+/// This endpoint returns a maximum of 50 integrations. If a guild has more
+/// integrations then they can't be accessed.
 #[must_use = "requests must be configured and executed"]
 pub struct GetGuildIntegrations<'a> {
     guild_id: Id<GuildMarker>,
@@ -21,12 +24,6 @@ pub struct GetGuildIntegrations<'a> {
 impl<'a> GetGuildIntegrations<'a> {
     pub(crate) const fn new(http: &'a Client, guild_id: Id<GuildMarker>) -> Self {
         Self { guild_id, http }
-    }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    #[deprecated(since = "0.14.0", note = "use `.await` or `into_future` instead")]
-    pub fn exec(self) -> ResponseFuture<ListBody<GuildIntegration>> {
-        self.into_future()
     }
 }
 

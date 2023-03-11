@@ -433,6 +433,8 @@ pub enum Route<'a> {
         /// The ID of the guild.
         guild_id: u64,
     },
+    /// Route information to get the current OAuth authorization information.
+    GetCurrentAuthorizationInformation,
     /// Route information to get the current user.
     GetCurrentUser,
     /// Route information to get info about application the current bot user belongs to
@@ -629,7 +631,12 @@ pub enum Route<'a> {
     },
     /// Route information to get a guild's widget.
     GetGuildWidget {
-        /// The ID of the guild.
+        /// ID of the guild.
+        guild_id: u64,
+    },
+    /// Route information to get a guild's widget settings.
+    GetGuildWidgetSettings {
+        /// ID of the guild.
         guild_id: u64,
     },
     /// Route information to get a paginated list of guilds.
@@ -769,8 +776,16 @@ pub enum Route<'a> {
     },
     /// Route information to get members of a thread.
     GetThreadMembers {
+        /// Fetch thread members after this user ID.
+        after: Option<u64>,
         /// ID of the thread.
         channel_id: u64,
+        /// Maximum number of thread members to return.
+        ///
+        /// Must be between 1 and 100. Defaults to 100.
+        limit: Option<u32>,
+        /// Whether to include associated member objects.
+        with_member: Option<bool>,
     },
     /// Route information to get a user.
     GetUser {
@@ -993,9 +1008,9 @@ pub enum Route<'a> {
         /// ID of the guild.
         guild_id: u64,
     },
-    /// Route information to update a guild's widget.
-    UpdateGuildWidget {
-        /// The ID of the guild.
+    /// Route information to update a guild's widget settings.
+    UpdateGuildWidgetSettings {
+        /// ID of the guild.
         guild_id: u64,
     },
     /// Update the original interaction response.
@@ -1143,6 +1158,7 @@ impl<'a> Route<'a> {
             | Self::GetChannelWebhooks { .. }
             | Self::GetChannels { .. }
             | Self::GetCommandPermissions { .. }
+            | Self::GetCurrentAuthorizationInformation
             | Self::GetCurrentUserApplicationInfo
             | Self::GetCurrentUser
             | Self::GetCurrentUserGuildMember { .. }
@@ -1173,6 +1189,7 @@ impl<'a> Route<'a> {
             | Self::GetGuildWelcomeScreen { .. }
             | Self::GetGuildWebhooks { .. }
             | Self::GetGuildWidget { .. }
+            | Self::GetGuildWidgetSettings { .. }
             | Self::GetGuilds { .. }
             | Self::GetInteractionOriginal { .. }
             | Self::GetInvite { .. }
@@ -1210,7 +1227,7 @@ impl<'a> Route<'a> {
             | Self::UpdateGuildChannels { .. }
             | Self::UpdateGuildCommand { .. }
             | Self::UpdateGuildMfa { .. }
-            | Self::UpdateGuildWidget { .. }
+            | Self::UpdateGuildWidgetSettings { .. }
             | Self::UpdateGuildIntegration { .. }
             | Self::UpdateGuildScheduledEvent { .. }
             | Self::UpdateGuildSticker { .. }
@@ -1511,6 +1528,7 @@ impl<'a> Route<'a> {
             | Self::UpdateCommandPermissions { application_id, .. } => {
                 Path::ApplicationGuildCommandId(application_id)
             }
+            Self::GetCurrentAuthorizationInformation => Path::OauthMe,
             Self::GetCurrentUserApplicationInfo => Path::OauthApplicationsMe,
             Self::GetCurrentUser | Self::GetUser { .. } | Self::UpdateCurrentUser => Path::UsersId,
             Self::GetCurrentUserGuildMember { .. } => Path::UsersIdGuildsIdMember,
@@ -1521,9 +1539,9 @@ impl<'a> Route<'a> {
             Self::GetGuild { guild_id, .. } | Self::UpdateGuild { guild_id } => {
                 Path::GuildsId(guild_id)
             }
-            Self::GetGuildWidget { guild_id } | Self::UpdateGuildWidget { guild_id } => {
-                Path::GuildsIdWidget(guild_id)
-            }
+            Self::GetGuildWidget { guild_id } => Path::GuildsIdWidgetJson(guild_id),
+            Self::GetGuildWidgetSettings { guild_id }
+            | Self::UpdateGuildWidgetSettings { guild_id } => Path::GuildsIdWidget(guild_id),
             Self::GetGuildIntegrations { guild_id } => Path::GuildsIdIntegrations(guild_id),
             Self::GetGuildInvites { guild_id } => Path::GuildsIdInvites(guild_id),
             Self::GetGuildMembers { guild_id, .. } | Self::UpdateCurrentMember { guild_id, .. } => {
@@ -2327,6 +2345,7 @@ impl Display for Route<'_> {
 
                 f.write_str("/permissions")
             }
+            Route::GetCurrentAuthorizationInformation => f.write_str("oauth2/@me"),
             Route::GetCurrentUserApplicationInfo => f.write_str("oauth2/applications/@me"),
             Route::GetCurrentUser | Route::UpdateCurrentUser => f.write_str("users/@me"),
             Route::GetCurrentUserGuildMember { guild_id } => {
@@ -2534,7 +2553,14 @@ impl Display for Route<'_> {
 
                 f.write_str("/webhooks")
             }
-            Route::GetGuildWidget { guild_id } | Route::UpdateGuildWidget { guild_id } => {
+            Route::GetGuildWidget { guild_id } => {
+                f.write_str("guilds/")?;
+                Display::fmt(guild_id, f)?;
+
+                f.write_str("/widget.json")
+            }
+            Route::GetGuildWidgetSettings { guild_id }
+            | Route::UpdateGuildWidgetSettings { guild_id } => {
                 f.write_str("guilds/")?;
                 Display::fmt(guild_id, f)?;
 
@@ -2728,11 +2754,33 @@ impl Display for Route<'_> {
 
                 Display::fmt(sticker_id, f)
             }
-            Route::GetThreadMembers { channel_id } => {
+            Route::GetThreadMembers {
+                after,
+                channel_id,
+                limit,
+                with_member,
+            } => {
                 f.write_str("channels/")?;
                 Display::fmt(channel_id, f)?;
+                f.write_str("/thread-members")?;
+                f.write_str("?")?;
 
-                f.write_str("/thread-members")
+                if let Some(after) = after {
+                    f.write_str("after=")?;
+                    Display::fmt(after, f)?;
+                }
+
+                if let Some(limit) = limit {
+                    f.write_str("&limit=")?;
+                    Display::fmt(limit, f)?;
+                }
+
+                if let Some(with_member) = with_member {
+                    f.write_str("&with_member=")?;
+                    Display::fmt(with_member, f)?;
+                }
+
+                Ok(())
             }
             Route::GetUserConnections => f.write_str("users/@me/connections"),
             Route::GetUser { user_id } => {
@@ -3108,10 +3156,7 @@ mod tests {
         };
         assert_eq!(
             route.to_string(),
-            format!(
-                "applications/{application_id}/commands?with_localizations=true",
-                application_id = APPLICATION_ID
-            )
+            format!("applications/{APPLICATION_ID}/commands?with_localizations=true")
         );
 
         let route = Route::GetGlobalCommands {
@@ -3163,9 +3208,7 @@ mod tests {
         assert_eq!(
             route.to_string(),
             format!(
-                "applications/{application_id}/guilds/{guild_id}/commands?with_localizations=true",
-                application_id = APPLICATION_ID,
-                guild_id = GUILD_ID
+                "applications/{APPLICATION_ID}/guilds/{GUILD_ID}/commands?with_localizations=true"
             )
         );
 
@@ -3953,6 +3996,12 @@ mod tests {
     }
 
     #[test]
+    fn get_current_authorization_info() {
+        let route = Route::GetCurrentAuthorizationInformation;
+        assert_eq!(route.to_string(), "oauth2/@me");
+    }
+
+    #[test]
     fn get_current_user_application_info() {
         let route = Route::GetCurrentUserApplicationInfo;
         assert_eq!(route.to_string(), "oauth2/applications/@me");
@@ -4084,12 +4133,18 @@ mod tests {
     #[test]
     fn get_guild_widget() {
         let route = Route::GetGuildWidget { guild_id: GUILD_ID };
+        assert_eq!(route.to_string(), format!("guilds/{GUILD_ID}/widget.json"));
+    }
+
+    #[test]
+    fn get_guild_widget_settings() {
+        let route = Route::GetGuildWidgetSettings { guild_id: GUILD_ID };
         assert_eq!(route.to_string(), format!("guilds/{GUILD_ID}/widget"));
     }
 
     #[test]
-    fn update_guild_widget() {
-        let route = Route::UpdateGuildWidget { guild_id: GUILD_ID };
+    fn update_guild_widget_settings() {
+        let route = Route::UpdateGuildWidgetSettings { guild_id: GUILD_ID };
         assert_eq!(route.to_string(), format!("guilds/{GUILD_ID}/widget"));
     }
 
@@ -4119,11 +4174,28 @@ mod tests {
     #[test]
     fn get_thread_members() {
         let route = Route::GetThreadMembers {
+            after: None,
             channel_id: CHANNEL_ID,
+            limit: None,
+            with_member: None,
         };
         assert_eq!(
             route.to_string(),
-            format!("channels/{CHANNEL_ID}/thread-members")
+            format!("channels/{CHANNEL_ID}/thread-members?")
+        );
+
+        let route = Route::GetThreadMembers {
+            after: Some(USER_ID),
+            channel_id: CHANNEL_ID,
+            limit: Some(1),
+            with_member: Some(true),
+        };
+
+        assert_eq!(
+            route.to_string(),
+            format!(
+                "channels/{CHANNEL_ID}/thread-members?after={USER_ID}&limit=1&with_member=true"
+            )
         );
     }
 

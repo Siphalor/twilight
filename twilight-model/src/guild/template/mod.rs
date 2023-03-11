@@ -41,7 +41,7 @@ mod tests {
             Channel, ChannelType,
         },
         guild::{
-            DefaultMessageNotificationLevel, ExplicitContentFilter, Permissions,
+            AfkTimeout, DefaultMessageNotificationLevel, ExplicitContentFilter, Permissions,
             SystemChannelFlags, VerificationLevel,
         },
         id::Id,
@@ -201,7 +201,7 @@ mod tests {
             name: "name".into(),
             serialized_source_guild: TemplateGuild {
                 afk_channel_id: None,
-                afk_timeout: 300,
+                afk_timeout: AfkTimeout::FIVE_MINUTES,
                 channels: Vec::from([
                     Channel {
                         application_id: None,
@@ -221,6 +221,7 @@ mod tests {
                         kind: ChannelType::GuildCategory,
                         last_message_id: None,
                         last_pin_timestamp: None,
+                        managed: None,
                         member: None,
                         member_count: None,
                         message_count: None,
@@ -257,6 +258,7 @@ mod tests {
                         kind: ChannelType::GuildText,
                         last_message_id: None,
                         last_pin_timestamp: None,
+                        managed: None,
                         member: None,
                         member_count: None,
                         message_count: None,
@@ -306,6 +308,7 @@ mod tests {
                         kind: ChannelType::GuildCategory,
                         last_message_id: None,
                         last_pin_timestamp: None,
+                        managed: None,
                         member: None,
                         member_count: None,
                         message_count: None,
@@ -342,6 +345,7 @@ mod tests {
                         kind: ChannelType::GuildVoice,
                         last_message_id: None,
                         last_pin_timestamp: None,
+                        managed: None,
                         member: None,
                         member_count: None,
                         message_count: None,
@@ -481,7 +485,8 @@ mod tests {
                 Token::Str("afk_channel_id"),
                 Token::None,
                 Token::Str("afk_timeout"),
-                Token::U64(300),
+                Token::NewtypeStruct { name: "AfkTimeout" },
+                Token::U16(300),
                 Token::Str("channels"),
                 Token::Seq { len: Some(4) },
                 Token::Struct {

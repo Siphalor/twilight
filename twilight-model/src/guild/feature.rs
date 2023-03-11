@@ -20,12 +20,13 @@ pub enum GuildFeature {
     AutoModeration,
     /// Has access to set a guild banner image.
     Banner,
-    /// Has access to use commerce features (create store channels).
-    #[deprecated]
-    Commerce,
     /// Can enable welcome screen, membership screening, stage channels,
     /// discovery, and receives community updates.
     Community,
+    /// Guild has enabled monetization.
+    CreatorMonetizableProvisional,
+    /// Guild has enabled the role subscription promotional page.
+    CreatorStorePage,
     /// Guild has been set as a support server on the App Directory.
     DeveloperSupportServer,
     /// Is able to be discovered in the directory.
@@ -38,8 +39,6 @@ pub enum GuildFeature {
     InviteSplash,
     /// Has enabled membership screening.
     MemberVerificationGateEnabled,
-    /// Has enabled monetization.
-    MonetizationEnabled,
     /// Has increased custom sticker slots.
     MoreStickers,
     /// Has access to create news channels.
@@ -52,6 +51,10 @@ pub enum GuildFeature {
     PrivateThreads,
     /// Is able to set role icons.
     RoleIcons,
+    /// Guild has role subscriptions that can be purchased.
+    RoleSubscriptionsAvailableForPurchase,
+    /// Guild has enabled role subscriptions.
+    RoleSubscriptionsEnabled,
     /// Has enabled ticketed events.
     TicketedEventsEnabled,
     /// Has access to set a vanity URL.
@@ -73,8 +76,9 @@ impl From<GuildFeature> for Cow<'static, str> {
             GuildFeature::AnimatedIcon => "ANIMATED_ICON".into(),
             GuildFeature::AutoModeration => "AUTO_MODERATION".into(),
             GuildFeature::Banner => "BANNER".into(),
-            GuildFeature::Commerce => "COMMERCE".into(),
             GuildFeature::Community => "COMMUNITY".into(),
+            GuildFeature::CreatorMonetizableProvisional => "CREATOR_MONETIZABLE_PROVISIONAL".into(),
+            GuildFeature::CreatorStorePage => "CREATOR_STORE_PAGE".into(),
             GuildFeature::DeveloperSupportServer => "DEVELOPER_SUPPORT_SERVER".into(),
             GuildFeature::Discoverable => "DISCOVERABLE".into(),
             GuildFeature::Featurable => "FEATURABLE".into(),
@@ -83,13 +87,16 @@ impl From<GuildFeature> for Cow<'static, str> {
             GuildFeature::MemberVerificationGateEnabled => {
                 "MEMBER_VERIFICATION_GATE_ENABLED".into()
             }
-            GuildFeature::MonetizationEnabled => "MONETIZATION_ENABLED".into(),
             GuildFeature::MoreStickers => "MORE_STICKERS".into(),
             GuildFeature::News => "NEWS".into(),
             GuildFeature::Partnered => "PARTNERED".into(),
             GuildFeature::PreviewEnabled => "PREVIEW_ENABLED".into(),
             GuildFeature::PrivateThreads => "PRIVATE_THREADS".into(),
             GuildFeature::RoleIcons => "ROLE_ICONS".into(),
+            GuildFeature::RoleSubscriptionsAvailableForPurchase => {
+                "ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE".into()
+            }
+            GuildFeature::RoleSubscriptionsEnabled => "ROLE_SUBSCRIPTIONS_ENABLED".into(),
             GuildFeature::TicketedEventsEnabled => "TICKETED_EVENTS_ENABLED".into(),
             GuildFeature::VanityUrl => "VANITY_URL".into(),
             GuildFeature::Verified => "VERIFIED".into(),
@@ -107,21 +114,25 @@ impl From<String> for GuildFeature {
             "ANIMATED_ICON" => Self::AnimatedIcon,
             "AUTO_MODERATION" => Self::AutoModeration,
             "BANNER" => Self::Banner,
-            "COMMERCE" => Self::Commerce,
             "COMMUNITY" => Self::Community,
+            "CREATOR_MONETIZABLE_PROVISIONAL" => GuildFeature::CreatorMonetizableProvisional,
+            "CREATOR_STORE_PAGE" => GuildFeature::CreatorStorePage,
             "DEVELOPER_SUPPORT_SERVER" => Self::DeveloperSupportServer,
             "DISCOVERABLE" => Self::Discoverable,
             "FEATURABLE" => Self::Featurable,
             "INVITES_DISABLED" => Self::InvitesDisabled,
             "INVITE_SPLASH" => Self::InviteSplash,
             "MEMBER_VERIFICATION_GATE_ENABLED" => Self::MemberVerificationGateEnabled,
-            "MONETIZATION_ENABLED" => Self::MonetizationEnabled,
             "MORE_STICKERS" => Self::MoreStickers,
             "NEWS" => Self::News,
             "PARTNERED" => Self::Partnered,
             "PREVIEW_ENABLED" => Self::PreviewEnabled,
             "PRIVATE_THREADS" => Self::PrivateThreads,
             "ROLE_ICONS" => Self::RoleIcons,
+            "ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE" => {
+                GuildFeature::RoleSubscriptionsAvailableForPurchase
+            }
+            "ROLE_SUBSCRIPTIONS_ENABLED" => GuildFeature::RoleSubscriptionsEnabled,
             "TICKETED_EVENTS_ENABLED" => Self::TicketedEventsEnabled,
             "VANITY_URL" => Self::VanityUrl,
             "VERIFIED" => Self::Verified,
@@ -149,8 +160,15 @@ mod tests {
             &[Token::Str("AUTO_MODERATION")],
         );
         serde_test::assert_tokens(&GuildFeature::Banner, &[Token::Str("BANNER")]);
-        serde_test::assert_tokens(&GuildFeature::Commerce, &[Token::Str("COMMERCE")]);
         serde_test::assert_tokens(&GuildFeature::Community, &[Token::Str("COMMUNITY")]);
+        serde_test::assert_tokens(
+            &GuildFeature::CreatorMonetizableProvisional,
+            &[Token::Str("CREATOR_MONETIZABLE_PROVISIONAL")],
+        );
+        serde_test::assert_tokens(
+            &GuildFeature::CreatorStorePage,
+            &[Token::Str("CREATOR_STORE_PAGE")],
+        );
         serde_test::assert_tokens(
             &GuildFeature::DeveloperSupportServer,
             &[Token::Str("DEVELOPER_SUPPORT_SERVER")],
@@ -166,10 +184,6 @@ mod tests {
             &GuildFeature::MemberVerificationGateEnabled,
             &[Token::Str("MEMBER_VERIFICATION_GATE_ENABLED")],
         );
-        serde_test::assert_tokens(
-            &GuildFeature::MonetizationEnabled,
-            &[Token::Str("MONETIZATION_ENABLED")],
-        );
         serde_test::assert_tokens(&GuildFeature::MoreStickers, &[Token::Str("MORE_STICKERS")]);
         serde_test::assert_tokens(&GuildFeature::News, &[Token::Str("NEWS")]);
         serde_test::assert_tokens(&GuildFeature::Partnered, &[Token::Str("PARTNERED")]);
@@ -182,6 +196,14 @@ mod tests {
             &[Token::Str("PRIVATE_THREADS")],
         );
         serde_test::assert_tokens(&GuildFeature::RoleIcons, &[Token::Str("ROLE_ICONS")]);
+        serde_test::assert_tokens(
+            &GuildFeature::RoleSubscriptionsAvailableForPurchase,
+            &[Token::Str("ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE")],
+        );
+        serde_test::assert_tokens(
+            &GuildFeature::RoleSubscriptionsEnabled,
+            &[Token::Str("ROLE_SUBSCRIPTIONS_ENABLED")],
+        );
         serde_test::assert_tokens(
             &GuildFeature::TicketedEventsEnabled,
             &[Token::Str("TICKETED_EVENTS_ENABLED")],

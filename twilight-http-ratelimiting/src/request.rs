@@ -240,8 +240,10 @@ pub enum Path {
     GuildsIdWebhooks(u64),
     /// Operating on one of the user's guilds' welcome screen.
     GuildsIdWelcomeScreen(u64),
-    /// Operating on one of the user's guilds' widget.
+    /// Operating on one of the user's guild's widget settings.
     GuildsIdWidget(u64),
+    /// Operating on one of the user's guild's widget.
+    GuildsIdWidgetJson(u64),
     /// Operating on a guild template.
     GuildsTemplatesCode(String),
     /// Operating on an interaction's callback.
@@ -252,6 +254,8 @@ pub enum Path {
     InvitesCode,
     /// Operating on the user's application information.
     OauthApplicationsMe,
+    /// Operating on the current authorization's information.
+    OauthMe,
     /// Operating on stage instances.
     StageInstances,
     /// Operating on sticker packs.
@@ -385,7 +389,6 @@ impl FromStr for Path {
             ["guilds", id, "bans"] => GuildsIdBans(parse_id(id)?),
             ["guilds", id, "bans", _] => GuildsIdBansUserId(parse_id(id)?),
             ["guilds", id, "channels"] => GuildsIdChannels(parse_id(id)?),
-            ["guilds", id, "widget" | "widget.json"] => GuildsIdWidget(parse_id(id)?),
             ["guilds", id, "emojis"] => GuildsIdEmojis(parse_id(id)?),
             ["guilds", id, "emojis", _] => GuildsIdEmojisId(parse_id(id)?),
             ["guilds", id, "integrations"] => GuildsIdIntegrations(parse_id(id)?),
@@ -419,12 +422,15 @@ impl FromStr for Path {
             ["guilds", id, "voice-states", _] => GuildsIdVoiceStates(parse_id(id)?),
             ["guilds", id, "welcome-screen"] => GuildsIdWelcomeScreen(parse_id(id)?),
             ["guilds", id, "webhooks"] => GuildsIdWebhooks(parse_id(id)?),
+            ["guilds", id, "widget"] => GuildsIdWidget(parse_id(id)?),
+            ["guilds", id, "widget.json"] => GuildsIdWidgetJson(parse_id(id)?),
             ["invites", _] => InvitesCode,
             ["interactions", id, _, "callback"] => InteractionCallback(parse_id(id)?),
             ["stage-instances", _] => StageInstances,
             ["sticker-packs"] => StickerPacks,
             ["stickers", _] => Stickers,
             ["oauth2", "applications", "@me"] => OauthApplicationsMe,
+            ["oauth2", "@me"] => OauthMe,
             ["users", _] => UsersId,
             ["users", _, "connections"] => UsersIdConnections,
             ["users", _, "channels"] => UsersIdChannels,

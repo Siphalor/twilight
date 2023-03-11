@@ -8,35 +8,7 @@ parses and processes them, and then gives them to you. It will automatically
 reconnect, resume, and identify, as well as do some additional connectivity
 checks.
 
-Also provided is the `Cluster`, which will automatically manage a collection of
-shards and unify their messages into one stream. It doesn't have a large API, you
-usually want to spawn a task to bring it up such that you can begin to receive
-tasks as soon as they arrive.
-
-```rust,no_run
-# use std::sync::Arc;
-# use futures::StreamExt;
-# use twilight_gateway::{Cluster, Intents};
-#
-# #[tokio::main]
-# async fn main() -> Result<(), Box<dyn std::error::Error>> {
-#    let token = String::from("dummy");
-let intents = Intents::GUILD_MESSAGES | Intents::GUILDS;
-let (cluster, mut events) = Cluster::new(token, intents).await?;
-let cluster = Arc::new(cluster);
-
-let cluster_spawn = cluster.clone();
-
-tokio::spawn(async move {
-    cluster_spawn.up().await;
-});
-# let _ = events.next().await;
-#     Ok(())
-# }
-```
-
 ## Features
-
 
 `twilight-gateway` includes a number of features for things ranging from
 payload deserialization to TLS features.
@@ -60,32 +32,31 @@ In addition to enabling the feature, you will need to add the following to your
 rustflags = ["-C", "target-cpu=native"]
 ```
 
-### Metrics
-
-The `metrics` feature provides metrics information via the [`metrics`] crate.
-Some of the metrics logged are counters about received event counts and their
-types and gauges about the capacity and efficiency of the inflater of each
-shard.
-
-This is disabled by default.
-
 ### TLS
 
-`twilight-gateway` has features to enable [`async-tungstenite`] and
-[`twilight-http`]'s TLS features. These features are mutually exclusive. `rustls`
-is enabled by default.
+`twilight-gateway` has features to enable [`tokio-tungstenite`]'s TLS features.
+These features are mutually exclusive. `rustls-native-roots` is enabled by
+default.
 
 #### Native
 
-The `native` feature enables [`async-tungstenite`]'s `tokio-native-tls` feature
-as well as [`twilight-http`]'s `native` feature which uses `hyper-tls`.
+The `native` feature enables [`tokio-tungstenite`]'s `native-tls` feature.
 
 #### RusTLS
 
-The `rustls` feature enables [`async-tungstenite`]'s `tokio-rustls` feature and
-[`twilight-http`]'s `rustls` feature, which use [RusTLS] as the TLS backend.
+RusTLS allows specifying from where certificate roots are retrieved from.
+
+##### Native roots
+
+The `rustls-native-roots` feature enables [`tokio-tungstenite`]'s
+`rustls-tls-native-roots` feature.
 
 This is enabled by default.
+
+##### Web PKI roots
+
+The `rustls-webpki-roots` feature enables [`tokio-tungstenite`]'s
+`rustls-tls-webpki-roots` feature.
 
 ### Zlib
 
@@ -108,9 +79,8 @@ the dependency tree it will make use of that instead of [zlib-ng].
 Starting a `Shard` and printing the contents of new messages as they come in:
 
 ```rust,no_run
-use futures::StreamExt;
 use std::{env, error::Error};
-use twilight_gateway::{Intents, Shard};
+use twilight_gateway::{Intents, Shard, ShardId};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -118,13 +88,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
 
     let token = env::var("DISCORD_TOKEN")?;
-    let (shard, mut events) = Shard::new(token, Intents::GUILD_MESSAGES);
+    let intents = Intents::GUILD_MESSAGES;
+    let mut shard = Shard::new(ShardId::ONE, token, intents);
+    tracing::info!("created shard");
 
-    shard.start().await?;
-    println!("Created shard");
+    loop {
+        let event = match shard.next_event().await {
+            Ok(event) => event,
+            Err(source) => {
+                tracing::warn!(?source, "error receiving event");
 
-    while let Some(event) = events.next().await {
-        println!("Event: {:?}", event);
+                if source.is_fatal() {
+                    break;
+                }
+
+                continue;
+            }
+        };
+
+        tracing::debug!(?event, "event");
     }
 
     Ok(())
@@ -133,7 +115,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 ## Links
 
-*source*: <https://github.com/twilight-rs/twilight/tree/main/gateway>
+*source*: <https://github.com/twilight-rs/twilight/tree/main/twilight-gateway>
 
 *docs*: <https://docs.rs/twilight-gateway>
 
@@ -144,10 +126,8 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 [cmake]: https://cmake.org/
 [flate2]: https://github.com/alexcrichton/flate2-rs
 [zlib-ng]: https://github.com/zlib-ng/zlib-ng
-[`async-tungstenite`]: https://crates.io/crates/async-tungstenite
 [`hyper-rustls`]: https://crates.io/crates/hyper-rustls
 [`hyper-tls`]: https://crates.io/crates/hyper-tls
-[`metrics`]: https://crates.io/crates/metrics
 [`serde_json`]: https://crates.io/crates/serde_json
 [`simd-json`]: https://crates.io/crates/simd-json
-[`twilight-http`]: ./section_2_http.md
+[`tokio-tungstenite`]: https://crates.io/crates/tokio-tungstenite

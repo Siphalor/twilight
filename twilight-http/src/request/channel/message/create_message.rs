@@ -238,9 +238,11 @@ impl<'a> CreateMessage<'a> {
 
     /// Set the message's flags.
     ///
-    /// The only supported flag is [`SUPPRESS_EMBEDS`].
+    /// The only supported flags are [`SUPPRESS_EMBEDS`] and
+    /// [`SUPPRESS_NOTIFICATIONS`].
     ///
     /// [`SUPPRESS_EMBEDS`]: MessageFlags::SUPPRESS_EMBEDS
+    /// [`SUPPRESS_NOTIFICATIONS`]: MessageFlags::SUPPRESS_NOTIFICATIONS
     pub const fn flags(mut self, flags: MessageFlags) -> Self {
         self.fields.flags = Some(flags);
 
@@ -319,12 +321,6 @@ impl<'a> CreateMessage<'a> {
         self.fields.tts = Some(tts);
 
         self
-    }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    #[deprecated(since = "0.14.0", note = "use `.await` or `into_future` instead")]
-    pub fn exec(self) -> ResponseFuture<Message> {
-        self.into_future()
     }
 }
 

@@ -3,125 +3,141 @@
 [![codecov badge][]][codecov link] [![discord badge][]][discord link] [![github badge][]][github link] [![license badge][]][license link] ![rust badge]
 
 `twilight-gateway` is an implementation of Discord's sharding gateway sessions.
-This is responsible for receiving stateful events in real-time from Discord
-and sending *some* stateful information.
+This is responsible for receiving stateful events in real-time from Discord and
+sending *some* stateful information.
 
-It includes two primary types: the Shard and Cluster.
+The primary type is the `Shard`, a stateful interface to maintain a Websocket
+connection to Discord's gateway. Much of its functionality can be configured,
+and it's used to receive gateway events or raw Websocket messages, useful for
+load balancing and microservices.
 
-The Shard handles a single websocket connection and can manage up to 2500
-guilds. If you manage a small bot in under about 2000 guilds, then this is
-what you use. See the [Discord Docs/Sharding][docs:discord:sharding] for
-more information on sharding.
-
-The Cluster is an interface which manages the health of the shards it
-manages and proxies all of their events under one unified stream. This is
-useful to use if you have a large bot in over 1000 or 2000 guilds.
-
-## Examples
-
-There are a few usage examples located in the [root of the `twilight`
-repository][github examples link].
+Using the `stream` module, shards can be easily managed in groups.
 
 ## Features
 
-### Deserialization
+* `simd-json`: use [`simd-json`] instead of [`serde_json`] for deserializing
+  events
+* TLS (mutually exclusive)
+  * `native`: platform's native TLS implementation via [`native-tls`]
+  * `rustls-native-roots` (*default*): [`rustls`] using native root certificates
+  * `rustls-webpki-roots`: [`rustls`] using [`webpki-roots`] for root
+    certificates, useful for `scratch` containers
+* `twilight-http` (*default*): enable the `stream::create_recommended` function
+* Zlib (mutually exclusive)
+  * `zlib-stock` (*default*): [`flate2`]'s stock zlib implementation
+  * `zlib-simd`: use [`zlib-ng`] for zlib, may have better performance
 
-`twilight-gateway` supports [`serde_json`] and [`simd-json`] for
-deserializing and serializing events.
+## Examples
 
-#### `simd-json`
+Create a shard and loop over guild and voice state events:
 
-The `simd-json` feature enables [`simd-json`] support to use simd features
-of modern cpus to deserialize responses faster. It is not enabled by
-default.
+```rust,no_run
+use std::env;
+use twilight_gateway::{Intents, Shard, ShardId};
 
-To use this feature you need to also add these lines to
-`<project root>/.cargo/config`:
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Initialize the tracing subscriber.
+    tracing_subscriber::fmt::init();
 
-```toml
-[build]
-rustflags = ["-C", "target-cpu=native"]
+    let token = env::var("DISCORD_TOKEN")?;
+    let intents = Intents::GUILDS | Intents::GUILD_VOICE_STATES;
+
+    // Initialize the first and only shard in use by a bot.
+    let mut shard = Shard::new(ShardId::ONE, token, intents);
+
+    tracing::info!("started shard");
+
+    loop {
+        let event = match shard.next_event().await {
+            Ok(event) => event,
+            Err(source) => {
+                tracing::warn!(?source, "error receiving event");
+
+                // If the error is fatal, as may be the case for invalid
+                // authentication or intents, then break out of the loop to
+                // avoid constantly attempting to reconnect.
+                if source.is_fatal() {
+                    break;
+                }
+
+                continue;
+            },
+        };
+
+        // You'd normally want to spawn a new tokio task for each event and
+        // handle the event there to not block the shard.
+        tracing::debug!(?event, "received event");
+    }
+
+    Ok(())
+}
 ```
-you can also use this environment variable `RUSTFLAGS="-C target-cpu=native"`.
 
-```toml
-[dependencies]
-twilight-gateway = { default-features = false, features = ["rustls-native-roots", "simd-json"], version = "0.2" }
+Create the recommended number of shards and run them concurrently through
+`ShardEventStream`:
+
+```rust,no_run
+use futures::StreamExt;
+use std::env;
+use twilight_gateway::{
+    stream::{self, ShardEventStream},
+    Config, Intents,
+};
+use twilight_http::Client;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
+
+    let token = env::var("DISCORD_TOKEN")?;
+    let client = Client::new(token.clone());
+    let config = Config::new(token, Intents::GUILDS);
+
+    let mut shards = stream::create_recommended(&client, config, |_, builder| builder.build())
+        .await?
+        .collect::<Vec<_>>();
+
+    // Create an infinite stream over the shards' events.
+    let mut stream = ShardEventStream::new(shards.iter_mut());
+
+    while let Some((shard, event)) = stream.next().await {
+        let event = match event {
+            Ok(event) => event,
+            Err(source) => {
+                tracing::warn!(?source, "error receiving event");
+
+                if source.is_fatal() {
+                    break;
+                }
+
+                continue;
+            }
+        };
+
+        // You'd normally want to spawn a new tokio task for each event and
+        // handle the event there to not block the shards.
+        tracing::debug!(?event, shard = ?shard.id(), "received event");
+    }
+
+    Ok(())
+}
 ```
 
-### TLS
+There are a few additional examples located in the
+[repository][github examples link].
 
-**Note**: not enabling any TLS feature is support for use behind a proxy;
-Discord's API is HTTPS only.
-
-`twilight-gateway` has features to enable [`tokio-tungstenite`] and
-[`twilight-http`]'s TLS features. These features are mutually exclusive.
-`rustls-native-roots` is enabled by default.
-
-#### `native`
-
-The `native` feature enables [`tokio-tungstenite`]'s `native-tls`
-feature as well as [`twilight-http`]'s `native` feature which is mostly
-equivalent to using [`native-tls`].
-
-To enable `native`, do something like this in your `Cargo.toml`:
-
-```toml
-[dependencies]
-twilight-gateway = { default-features = false, features = ["native"], version = "0.2" }
-```
-
-#### `rustls-native-roots`
-
-The `rustls-native-roots` feature enables [`tokio-tungstenite`]'s `rustls-tls-native-roots` feature and
-[`twilight-http`]'s `rustls-native-roots` feature, which use [`rustls`] as the TLS backend and [`rustls-native-certs`]
-for root certificates.
-
-This is enabled by default.
-
-#### `rustls-webpki-roots`
-
-The `rustls-webpki-roots` feature enables [`tokio-tungstenite`]'s `rustls-tls-webpki-roots` feature and
-[`twilight-http`]'s `rustls-webpki-roots` feature, which use [`rustls`] as the TLS backend and [`webpki-roots`]
-for root certificates.
-
-This should be preferred over `rustls-native-roots` in Docker containers based on `scratch`.
-
-### zlib
-
-zlib compression is enabled with one of the two `zlib` features described below.
-
-There are 2 zlib features `zlib-stock` and `zlib-simd`, if both are enabled it
-will use `zlib-simd`.
-
-`zlib-stock` is enabled by default.
-
-Enabling `zlib-simd` will make the library use [`zlib-ng`] which is a modern
-fork of zlib that is faster and more efficient, but it needs `cmake` to compile.
-
-### Metrics
-
-The `metrics` feature provides metrics information via the `metrics` crate.
-Some of the metrics logged are counters about received event counts and
-their types and gauges about the capacity and efficiency of the inflater of
-each shard.
-
-This is disabled by default.
-
+[`flate2`]: https://crates.io/crates/flate2
 [`native-tls`]: https://crates.io/crates/native-tls
 [`rustls`]: https://crates.io/crates/rustls
-[`rustls-native-certs`]: https://crates.io/crates/rustls-native-certs
 [`serde_json`]: https://crates.io/crates/serde_json
 [`simd-json`]: https://crates.io/crates/simd-json
-[`tokio-tungstenite`]: https://crates.io/crates/tokio-tungstenite
-[`twilight-http`]: https://twilight-rs.github.io/twilight/twilight_http/index.html
 [`webpki-roots`]: https://crates.io/crates/webpki-roots
 [`zlib-ng`]: https://github.com/zlib-ng/zlib-ng
 [codecov badge]: https://img.shields.io/codecov/c/gh/twilight-rs/twilight?logo=codecov&style=for-the-badge&token=E9ERLJL0L2
 [codecov link]: https://app.codecov.io/gh/twilight-rs/twilight/
 [discord badge]: https://img.shields.io/discord/745809834183753828?color=%237289DA&label=discord%20server&logo=discord&style=for-the-badge
 [discord link]: https://discord.gg/7jj8n7D
-[docs:discord:sharding]: https://discord.com/developers/docs/topics/gateway#sharding
 [github badge]: https://img.shields.io/badge/github-twilight-6f42c1.svg?style=for-the-badge&logo=github
 [github examples link]: https://github.com/twilight-rs/twilight/tree/main/examples
 [github link]: https://github.com/twilight-rs/twilight

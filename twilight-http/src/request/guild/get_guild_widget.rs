@@ -7,11 +7,11 @@ use crate::{
 };
 use std::future::IntoFuture;
 use twilight_model::{
-    guild::GuildWidget,
+    guild::widget::GuildWidget,
     id::{marker::GuildMarker, Id},
 };
 
-/// Get the guild widget.
+/// Get a guild's widget
 ///
 /// See [Discord Docs/Get Guild Widget].
 ///
@@ -25,12 +25,6 @@ pub struct GetGuildWidget<'a> {
 impl<'a> GetGuildWidget<'a> {
     pub(crate) const fn new(http: &'a Client, guild_id: Id<GuildMarker>) -> Self {
         Self { guild_id, http }
-    }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    #[deprecated(since = "0.14.0", note = "use `.await` or `into_future` instead")]
-    pub fn exec(self) -> ResponseFuture<GuildWidget> {
-        self.into_future()
     }
 }
 

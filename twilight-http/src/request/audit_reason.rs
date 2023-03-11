@@ -1,5 +1,9 @@
 use twilight_validate::request::ValidationError;
 
+/// Attach a reason for a request.
+///
+/// Reasons are associated with the audit log entries that are automatically
+/// created for certain requests.
 pub trait AuditLogReason<'a>: private::Sealed {
     /// Attach an audit log reason to the request.
     ///
@@ -34,6 +38,7 @@ mod private {
             role::{CreateRole, DeleteRole, UpdateRole},
             sticker::{CreateGuildSticker, UpdateGuildSticker},
             CreateGuildChannel, CreateGuildPrune, UpdateCurrentMember, UpdateGuild, UpdateGuildMfa,
+            UpdateGuildWidgetSettings,
         },
         scheduled_event::{
             CreateGuildExternalScheduledEvent, CreateGuildScheduledEvent,
@@ -87,6 +92,7 @@ mod private {
     impl Sealed for UpdateGuildMfa<'_> {}
     impl Sealed for UpdateGuildScheduledEvent<'_> {}
     impl Sealed for UpdateGuildSticker<'_> {}
+    impl Sealed for UpdateGuildWidgetSettings<'_> {}
     impl Sealed for UpdateRole<'_> {}
     impl Sealed for UpdateThread<'_> {}
     impl Sealed for UpdateWebhook<'_> {}

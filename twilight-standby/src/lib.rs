@@ -1,23 +1,16 @@
-#![deny(
-    clippy::all,
+#![doc = include_str!("../README.md")]
+#![warn(
     clippy::missing_const_for_fn,
     clippy::missing_docs_in_private_items,
     clippy::pedantic,
-    future_incompatible,
     missing_docs,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::broken_intra_doc_links,
-    unsafe_code,
-    unused
+    unsafe_code
 )]
 #![allow(
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
-    clippy::unnecessary_wraps,
-    clippy::used_underscore_binding
+    clippy::unnecessary_wraps
 )]
-#![doc = include_str!("../README.md")]
 
 pub mod future;
 
@@ -316,7 +309,7 @@ impl Standby {
     /// let ready = standby
     ///     .wait_for_event(|event: &Event| {
     ///         if let Event::Ready(ready) = event {
-    ///             ready.shard.map(|[id, _]| id == 5).unwrap_or(false)
+    ///             ready.shard.map_or(false, |id| id.number() == 5)
     ///         } else {
     ///             false
     ///         }
@@ -373,7 +366,7 @@ impl Standby {
     ///
     /// let mut events = standby.wait_for_event_stream(|event: &Event| {
     ///     if let Event::Ready(ready) = event {
-    ///         ready.shard.map(|[id, _]| id == 5).unwrap_or(false)
+    ///         ready.shard.map_or(false, |id| id.number() == 5)
     ///     } else {
     ///         false
     ///     }
@@ -1060,7 +1053,7 @@ mod tests {
         channel::message::{component::ComponentType, Message, MessageType, ReactionType},
         gateway::{
             payload::incoming::{InteractionCreate, MessageCreate, ReactionAdd, Ready, RoleDelete},
-            GatewayReaction,
+            GatewayReaction, ShardId,
         },
         guild::Permissions,
         id::{marker::GuildMarker, Id},
@@ -1113,6 +1106,7 @@ mod tests {
             reactions: Vec::new(),
             reference: None,
             referenced_message: None,
+            role_subscription_data: None,
             sticker_items: Vec::new(),
             timestamp: Timestamp::from_secs(1_632_072_645).expect("non zero"),
             thread: None,
@@ -1318,8 +1312,9 @@ mod tests {
                 id: Id::new(1),
             },
             guilds: Vec::new(),
+            resume_gateway_url: "wss://gateway.discord.gg".into(),
             session_id: String::new(),
-            shard: Some([5, 7]),
+            shard: Some(ShardId::new(5, 7)),
             user: CurrentUser {
                 accent_color: None,
                 avatar: None,
@@ -1337,13 +1332,12 @@ mod tests {
                 locale: None,
             },
             version: 6,
-            resume_gateway_url: "wss://gateway.discord.gg/".to_owned(),
         };
         let event = Event::Ready(Box::new(ready));
 
         let standby = Standby::new();
         let wait = standby.wait_for_event(|event: &Event| match event {
-            Event::Ready(ready) => ready.shard.map_or(false, |[id, _]| id == 5),
+            Event::Ready(ready) => ready.shard.map_or(false, |id| id.number() == 5),
             _ => false,
         });
         assert!(!standby.events.is_empty());

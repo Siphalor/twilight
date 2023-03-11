@@ -9,14 +9,14 @@ use tokio::{
 };
 use twilight_http::Client;
 
-/// Queue built for single-process clusters that require identifying via
-/// [Sharding for Very Large Bots].
+/// Queue built for single-process groups of shards that require identifying via
+/// [Sharding for Large Bots].
 ///
-/// Usage with other processes will cause inconsistencies between each process
-/// cluster's ratelimit buckets. If you use multiple processes for clusters,
-/// then refer to the [module-level] documentation.
+/// Usage with other processes will cause inconsistencies between each process's
+/// ratelimit buckets. If using multiple processes for shard groups, then refer
+/// to the [module-level] documentation.
 ///
-/// [Sharding for Very Large Bots]: https://discord.com/developers/docs/topics/gateway#sharding-for-very-large-bots
+/// [Sharding for Large Bots]: https://discord.com/developers/docs/topics/gateway#sharding-for-very-large-bots
 /// [module-level]: crate
 #[derive(Debug)]
 pub struct LargeBotQueue {
@@ -74,8 +74,9 @@ async fn waiter(mut rx: UnboundedReceiver<Sender<()>>) {
     while let Some(req) = rx.recv().await {
         if let Err(source) = req.send(()) {
             tracing::warn!("skipping, send failed with: {source:?}");
+        } else {
+            sleep(DUR).await;
         }
-        sleep(DUR).await;
     }
 }
 

@@ -152,9 +152,11 @@ impl<'a> CreateForumThreadMessage<'a> {
 
     /// Set the message's flags.
     ///
-    /// The only supported flag is [`SUPPRESS_EMBEDS`].
+    /// The only supported flags are [`SUPPRESS_EMBEDS`] and
+    /// [`SUPPRESS_NOTIFICATIONS`].
     ///
     /// [`SUPPRESS_EMBEDS`]: MessageFlags::SUPPRESS_EMBEDS
+    /// [`SUPPRESS_NOTIFICATIONS`]: MessageFlags::SUPPRESS_NOTIFICATIONS
     pub const fn flags(mut self, flags: MessageFlags) -> Self {
         self.0.fields.message.flags = Some(flags);
 
@@ -195,12 +197,6 @@ impl<'a> CreateForumThreadMessage<'a> {
         self.0.fields.message.sticker_ids = Some(sticker_ids);
 
         Ok(self)
-    }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    #[deprecated(since = "0.14.0", note = "use `.await` or `into_future` instead")]
-    pub fn exec(self) -> ResponseFuture<ForumThread> {
-        self.into_future()
     }
 }
 

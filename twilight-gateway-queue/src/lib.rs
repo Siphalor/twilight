@@ -1,23 +1,16 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![deny(
-    clippy::all,
+#![doc = include_str!("../README.md")]
+#![warn(
     clippy::missing_const_for_fn,
     clippy::pedantic,
-    future_incompatible,
     missing_docs,
-    nonstandard_style,
-    rust_2018_idioms,
-    rustdoc::broken_intra_doc_links,
-    unsafe_code,
-    unused
+    unsafe_code
 )]
 #![allow(
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
-    clippy::unnecessary_wraps,
-    clippy::used_underscore_binding
+    clippy::unnecessary_wraps
 )]
-#![doc = include_str!("../README.md")]
 
 #[cfg(feature = "twilight-http")]
 mod day_limiter;
@@ -45,7 +38,7 @@ use tokio::{
 /// gateway.
 ///
 /// This will usually only need to be implemented when you have a multi-process
-/// cluster setup. Refer to the [module-level] documentation for more
+/// sharding setup. Refer to the [module-level] documentation for more
 /// information.
 ///
 /// [module-level]: crate
@@ -65,8 +58,8 @@ pub trait Queue: Debug + Send + Sync {
 /// the requests every 6 seconds. The queue is necessary because there's a
 /// ratelimit on how often shards can initiate sessions.
 ///
-/// You usually won't need to handle this yourself, because the `Cluster` will
-/// do that for you when managing multiple shards.
+/// Handling shard queues usually won't need to be manually handled due to the
+/// gateway having built-in queueing when managing multiple shards.
 ///
 /// # When not to use this
 ///
@@ -108,8 +101,9 @@ async fn waiter(mut rx: UnboundedReceiver<Sender<()>>) {
     while let Some(req) = rx.recv().await {
         if let Err(source) = req.send(()) {
             tracing::warn!("skipping, send failed: {source:?}");
+        } else {
+            sleep(DUR).await;
         }
-        sleep(DUR).await;
     }
 }
 

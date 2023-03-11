@@ -3,8 +3,8 @@ use std::slice::Iter;
 use serde::Serialize;
 use twilight_model::{
     guild::{
-        DefaultMessageNotificationLevel, ExplicitContentFilter, GuildFeature, MfaLevel, NSFWLevel,
-        Permissions, PremiumTier, SystemChannelFlags, VerificationLevel,
+        AfkTimeout, DefaultMessageNotificationLevel, ExplicitContentFilter, GuildFeature, MfaLevel,
+        NSFWLevel, Permissions, PremiumTier, SystemChannelFlags, VerificationLevel,
     },
     id::{
         marker::{ApplicationMarker, ChannelMarker, GuildMarker, UserMarker},
@@ -19,7 +19,7 @@ use twilight_model::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct CachedGuild {
     pub(crate) afk_channel_id: Option<Id<ChannelMarker>>,
-    pub(crate) afk_timeout: u64,
+    pub(crate) afk_timeout: AfkTimeout,
     pub(crate) application_id: Option<Id<ApplicationMarker>>,
     pub(crate) banner: Option<ImageHash>,
     pub(crate) default_message_notifications: DefaultMessageNotificationLevel,
@@ -45,6 +45,7 @@ pub struct CachedGuild {
     pub(crate) premium_progress_bar_enabled: bool,
     pub(crate) premium_subscription_count: Option<u64>,
     pub(crate) premium_tier: PremiumTier,
+    pub(crate) public_updates_channel_id: Option<Id<ChannelMarker>>,
     pub(crate) rules_channel_id: Option<Id<ChannelMarker>>,
     pub(crate) splash: Option<ImageHash>,
     pub(crate) system_channel_id: Option<Id<ChannelMarker>>,
@@ -63,7 +64,7 @@ impl CachedGuild {
     }
 
     /// AFK timeout in seconds.
-    pub const fn afk_timeout(&self) -> u64 {
+    pub const fn afk_timeout(&self) -> AfkTimeout {
         self.afk_timeout
     }
 
@@ -208,6 +209,12 @@ impl CachedGuild {
     /// Server boost level.
     pub const fn premium_tier(&self) -> PremiumTier {
         self.premium_tier
+    }
+
+    /// ID of the where moderators of Community guilds receive notices from
+    /// Discord.
+    pub const fn public_updates_channel_id(&self) -> Option<Id<ChannelMarker>> {
+        self.public_updates_channel_id
     }
 
     /// For Community guilds, the ID of the rules channel.

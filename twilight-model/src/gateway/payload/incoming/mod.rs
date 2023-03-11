@@ -25,6 +25,7 @@ mod channel_delete;
 mod channel_pins_update;
 mod channel_update;
 mod command_permissions_update;
+mod guild_audit_log_entry_create;
 mod guild_create;
 mod guild_delete;
 mod guild_emojis_update;
@@ -36,6 +37,7 @@ mod guild_scheduled_event_user_add;
 mod guild_scheduled_event_user_remove;
 mod guild_stickers_update;
 mod guild_update;
+mod hello;
 mod integration_create;
 mod integration_delete;
 mod integration_update;
@@ -80,7 +82,8 @@ pub use self::{
     auto_moderation_rule_update::AutoModerationRuleUpdate, ban_add::BanAdd, ban_remove::BanRemove,
     channel_create::ChannelCreate, channel_delete::ChannelDelete,
     channel_pins_update::ChannelPinsUpdate, channel_update::ChannelUpdate,
-    command_permissions_update::CommandPermissionsUpdate, guild_create::GuildCreate,
+    command_permissions_update::CommandPermissionsUpdate,
+    guild_audit_log_entry_create::GuildAuditLogEntryCreate, guild_create::GuildCreate,
     guild_delete::GuildDelete, guild_emojis_update::GuildEmojisUpdate,
     guild_integrations_update::GuildIntegrationsUpdate,
     guild_scheduled_event_create::GuildScheduledEventCreate,
@@ -88,7 +91,7 @@ pub use self::{
     guild_scheduled_event_update::GuildScheduledEventUpdate,
     guild_scheduled_event_user_add::GuildScheduledEventUserAdd,
     guild_scheduled_event_user_remove::GuildScheduledEventUserRemove,
-    guild_stickers_update::GuildStickersUpdate, guild_update::GuildUpdate,
+    guild_stickers_update::GuildStickersUpdate, guild_update::GuildUpdate, hello::Hello,
     integration_create::IntegrationCreate, integration_delete::IntegrationDelete,
     integration_update::IntegrationUpdate, interaction_create::InteractionCreate,
     invite_create::InviteCreate, invite_delete::InviteDelete, member_add::MemberAdd,

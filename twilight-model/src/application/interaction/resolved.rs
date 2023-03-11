@@ -1,6 +1,6 @@
 use crate::{
     channel::{thread::ThreadMetadata, Attachment, ChannelType, Message},
-    guild::{Permissions, Role},
+    guild::{MemberFlags, Permissions, Role},
     id::{
         marker::{AttachmentMarker, ChannelMarker, MessageMarker, RoleMarker, UserMarker},
         Id,
@@ -74,6 +74,10 @@ pub struct InteractionMember {
     pub avatar: Option<ImageHash>,
     /// If the member is timed out, when the timeout will expire.
     pub communication_disabled_until: Option<Timestamp>,
+    /// Flags for the member.
+    ///
+    /// Defaults to an empty bitfield.
+    pub flags: MemberFlags,
     /// Member guild join date.
     pub joined_at: Timestamp,
     /// Member nickname.
@@ -101,7 +105,7 @@ mod tests {
             },
             Attachment, ChannelType, Message,
         },
-        guild::{PartialMember, Permissions, Role},
+        guild::{MemberFlags, PartialMember, Permissions, Role},
         id::Id,
         test::image_hash,
         user::{PremiumType, User, UserFlags},
@@ -115,6 +119,7 @@ mod tests {
     fn test_data_resolved() -> Result<(), TimestampParseError> {
         let joined_at = Timestamp::from_str("2021-08-10T12:18:37.000000+00:00")?;
         let timestamp = Timestamp::from_str("2020-02-02T02:02:02.020000+00:00")?;
+        let flags = MemberFlags::BYPASSES_VERIFICATION | MemberFlags::DID_REJOIN;
 
         let value = InteractionDataResolved {
             attachments: IntoIterator::into_iter([(
@@ -150,6 +155,7 @@ mod tests {
                 InteractionMember {
                     avatar: None,
                     communication_disabled_until: None,
+                    flags,
                     joined_at,
                     nick: None,
                     pending: false,
@@ -196,6 +202,7 @@ mod tests {
                     member: Some(PartialMember {
                         avatar: None,
                         communication_disabled_until: None,
+                        flags,
                         deaf: false,
                         joined_at,
                         mute: false,
@@ -212,6 +219,7 @@ mod tests {
                     pinned: false,
                     reactions: Vec::new(),
                     reference: None,
+                    role_subscription_data: None,
                     sticker_items: vec![MessageSticker {
                         format_type: StickerFormatType::Png,
                         id: Id::new(1),
@@ -331,10 +339,12 @@ mod tests {
                 Token::Str("300"),
                 Token::Struct {
                     name: "InteractionMember",
-                    len: 6,
+                    len: 7,
                 },
                 Token::Str("communication_disabled_until"),
                 Token::None,
+                Token::Str("flags"),
+                Token::U64(flags.bits()),
                 Token::Str("joined_at"),
                 Token::Str("2021-08-10T12:18:37.000000+00:00"),
                 Token::Str("nick"),
@@ -407,12 +417,14 @@ mod tests {
                 Token::Some,
                 Token::Struct {
                     name: "PartialMember",
-                    len: 7,
+                    len: 8,
                 },
                 Token::Str("communication_disabled_until"),
                 Token::None,
                 Token::Str("deaf"),
                 Token::Bool(false),
+                Token::Str("flags"),
+                Token::U64(flags.bits()),
                 Token::Str("joined_at"),
                 Token::Str("2021-08-10T12:18:37.000000+00:00"),
                 Token::Str("mute"),
